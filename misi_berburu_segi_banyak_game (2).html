@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Misi Berburu Segi Banyak 🚀 - Duel 1 vs 1</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts & FontAwesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <!-- MediaPipe Hands & Camera Utils -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+            background-color: #030712;
+        }
+        
+        .font-game {
+            font-family: 'Fredoka One', cursive;
+        }
+
+        /* Full Screen Ultra HD Video Mirror Feed */
+        #webcam {
+            transform: scaleX(-1);
+            object-fit: cover;
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+            filter: contrast(1.05) saturate(1.1) brightness(1.02);
+        }
+
+        /* Overlay Game Canvas */
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 2;
+        }
+
+        /* Neon Glow Styling */
+        .neon-text-yellow {
+            text-shadow: 0 0 12px rgba(250, 204, 21, 0.9), 0 0 24px rgba(234, 179, 8, 0.6);
+        }
+        .neon-text-cyan {
+            text-shadow: 0 0 12px rgba(34, 211, 238, 0.9), 0 0 24px rgba(6, 182, 212, 0.6);
+        }
+        .neon-text-pink {
+            text-shadow: 0 0 12px rgba(244, 114, 182, 0.9), 0 0 24px rgba(236, 72, 153, 0.6);
+        }
+
+        /* Animations */
+        @keyframes floatSlow {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(3deg); }
+        }
+        .animate-float {
+            animation: floatSlow 3s ease-in-out infinite;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { transform: scale(1); opacity: 0.9; }
+            50% { transform: scale(1.06); opacity: 1; }
+        }
+        .animate-pulse-glow {
+            animation: pulseGlow 1.6s infinite ease-in-out;
+        }
+
+        @keyframes shine {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.1); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+        .trophy-shine {
+            animation: shine 10s linear infinite;
+        }
+
+        /* Mid-Screen Divider Glow Effect */
+        .laser-divider {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 4px;
+            height: 100vh;
+            transform: translateX(-50%);
+            background: linear-gradient(to bottom, #38bdf8, #a855f7, #f43f5e);
+            box-shadow: 0 0 15px #38bdf8, 0 0 25px #f43f5e;
+            z-index: 3;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="relative w-screen h-screen overflow-hidden bg-slate-950 text-white select-none">
+
+    <!-- Live Ultra HD Webcam Video Mirror Feed -->
+    <video id="webcam" autoplay playsinline muted></video>
+
+    <!-- Tint Overlay -->
+    <div class="absolute inset-0 bg-slate-950/25 pointer-events-none z-[1]"></div>
+
+    <!-- Mid-Screen Split Divider -->
+    <div class="laser-divider"></div>
+
+    <!-- High-DPI Interactive Game Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Top & Bottom HUD Layer -->
+    <div class="absolute inset-0 z-10 flex flex-col justify-between pointer-events-none p-3 sm:p-5">
+        
+        <!-- Top HUD Header -->
+        <div class="flex flex-wrap items-center justify-between gap-2 w-full max-w-7xl mx-auto pointer-events-auto">
+            
+            <!-- PLAYER 1 HUD (Left) -->
+            <div class="flex items-center gap-3 bg-slate-900/90 backdrop-blur-md border-3 border-cyan-400/90 px-4 py-2 rounded-2xl shadow-xl shadow-cyan-500/30">
+                <div class="w-10 h-10 flex items-center justify-center bg-cyan-500/20 rounded-xl border border-cyan-300 text-2xl">
+                    👨‍🚀
+                </div>
+                <div>
+                    <span class="text-xs font-black tracking-widest text-cyan-300 block">PEMAIN 1 (KIRI)</span>
+                    <div class="font-game text-xl sm:text-2xl text-cyan-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-star text-yellow-400 text-base"></i>
+                        <span id="scoreP1">0</span> <span class="text-slate-400 text-base">/ 33</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PERMANENT MAIN INSTRUCTION BANNER (Center) -->
+            <div class="flex flex-col items-center">
+                <div class="bg-gradient-to-r from-purple-900/90 via-indigo-900/90 to-purple-900/90 backdrop-blur-md border-4 border-yellow-400 px-5 py-2 rounded-3xl shadow-2xl shadow-purple-900/60 text-center max-w-xl">
+                    <span class="bg-yellow-400 text-slate-950 font-game text-xs px-2.5 py-0.5 rounded-full uppercase tracking-wider inline-block mb-0.5">DUEL 1 VS 1 ⚔️</span>
+                    <h1 class="font-game text-sm sm:text-base lg:text-lg text-yellow-300 neon-text-yellow leading-tight">
+                        Pilihlah gambar yang merupakan bangun datar segi banyak!
+                    </h1>
+                </div>
+                <div class="flex items-center gap-2 mt-1">
+                    <span id="camStatusDot" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span id="camStatusText" class="text-[10px] font-bold uppercase tracking-wider text-cyan-200 bg-slate-900/80 px-2 py-0.5 rounded-full">Mengaktifkan Kamera Dual Hand...</span>
+                </div>
+            </div>
+
+            <!-- PLAYER 2 HUD (Right) -->
+            <div class="flex items-center gap-3 bg-slate-900/90 backdrop-blur-md border-3 border-pink-500/90 px-4 py-2 rounded-2xl shadow-xl shadow-pink-500/30">
+                <div class="text-right">
+                    <span class="text-xs font-black tracking-widest text-pink-300 block">PEMAIN 2 (KANAN)</span>
+                    <div class="font-game text-xl sm:text-2xl text-pink-400 flex items-center justify-end gap-1.5">
+                        <span id="scoreP2">0</span> <span class="text-slate-400 text-base">/ 33</span>
+                        <i class="fa-solid fa-star text-yellow-400 text-base"></i>
+                    </div>
+                </div>
+                <div class="w-10 h-10 flex items-center justify-center bg-pink-500/20 rounded-xl border border-pink-300 text-2xl">
+                    👩‍🚀
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Bottom Controls & Legend -->
+        <div class="flex justify-between items-end w-full max-w-7xl mx-auto pointer-events-auto">
+            <div class="bg-slate-900/85 backdrop-blur-md border border-slate-700 px-4 py-2 rounded-xl text-xs text-slate-200 flex items-center gap-4 shadow-lg">
+                <span class="flex items-center gap-1.5"><span class="w-3.5 h-3.5 rounded-full bg-cyan-400 inline-block"></span> Pemain 1 Cursor</span>
+                <span class="flex items-center gap-1.5"><span class="w-3.5 h-3.5 rounded-full bg-pink-400 inline-block"></span> Pemain 2 Cursor</span>
+                <span class="hidden sm:inline text-slate-400">| Arahkan Telunjuk / Sentuh Layar (+3 Poin)</span>
+            </div>
+
+            <button onclick="resetGame()" class="bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white px-4 py-2 rounded-xl border border-slate-600 transition flex items-center gap-2 text-xs font-bold active:scale-95 shadow-lg">
+                <i class="fa-solid fa-rotate-right text-cyan-400"></i> Ulangi Duel
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Victory Screen Modal -->
+    <div id="victoryModal" class="hidden fixed inset-0 z-40 bg-slate-950/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center">
+        <div class="max-w-2xl w-full bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 border-4 border-yellow-400 p-8 rounded-3xl shadow-2xl shadow-yellow-500/50 flex flex-col items-center relative overflow-hidden">
+            
+            <div class="absolute w-96 h-96 bg-yellow-400/10 rounded-full blur-3xl trophy-shine pointer-events-none"></div>
+
+            <div class="text-5xl mb-1 animate-bounce">🚀🏆✨</div>
+
+            <!-- GIANT GOLDEN TROPHY -->
+            <div class="relative mb-3">
+                <div class="text-7xl sm:text-9xl filter drop-shadow-[0_0_30px_rgba(234,179,8,0.9)] animate-pulse-glow">
+                    🏆
+                </div>
+                <div class="absolute -top-2 -right-2 text-3xl animate-spin" style="animation-duration: 4s;">⭐</div>
+                <div class="absolute bottom-0 -left-4 text-3xl animate-bounce">🌟</div>
+            </div>
+
+            <!-- Victory Text -->
+            <h2 id="winnerTitle" class="font-game text-3xl sm:text-5xl text-yellow-300 neon-text-yellow mb-2 tracking-wide">
+                PEMAIN 1 MENANG!
+            </h2>
+            
+            <p class="text-slate-200 font-bold text-sm sm:text-base mb-4 max-w-lg">
+                Selamat! Berhasil mencapai 33 poin terlebih dahulu dalam misi berburu segi banyak!
+            </p>
+
+            <div class="flex items-center justify-center gap-6 bg-slate-900/80 border-2 border-yellow-400/80 px-6 py-3 rounded-2xl mb-6 w-full max-w-md">
+                <div class="text-center">
+                    <span class="text-xs text-cyan-300 font-bold block">PEMAIN 1</span>
+                    <span id="finalP1Score" class="font-game text-2xl text-cyan-400">33 Poin</span>
+                </div>
+                <div class="text-2xl font-game text-yellow-400">VS</div>
+                <div class="text-center">
+                    <span class="text-xs text-pink-300 font-bold block">PEMAIN 2</span>
+                    <span id="finalP2Score" class="font-game text-2xl text-pink-400">24 Poin</span>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-4 w-full">
+                <button onclick="resetGame()" class="flex-1 py-3.5 bg-gradient-to-r from-yellow-500 to-amber-400 hover:from-yellow-400 hover:to-amber-300 text-slate-950 font-game text-xl rounded-2xl shadow-lg shadow-yellow-500/30 active:scale-95 transition flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-rotate-right"></i> MAIN LAGI
+                </button>
+                <button onclick="resetGame()" class="flex-1 py-3.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 font-game text-xl rounded-2xl border-2 border-cyan-500/40 active:scale-95 transition flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-house"></i> KEMBALI
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Game Engine Logic -->
+    <script>
+        /* ==========================================================================
+           WEB AUDIO SYNTHESIZER
+           ========================================================================== */
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new AudioCtx();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playCorrectSound() {
+            initAudio();
+            if (!audioCtx) return;
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(523.25, now);
+            osc.frequency.exponentialRampToValueAtTime(1046.50, now + 0.15);
+            gain.gain.setValueAtTime(0.35, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now);
+            osc.stop(now + 0.25);
+        }
+
+        function playWrongSound() {
+            initAudio();
+            if (!audioCtx) return;
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(180, now);
+            osc.frequency.linearRampToValueAtTime(100, now + 0.2);
+            gain.gain.setValueAtTime(0.25, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now);
+            osc.stop(now + 0.2);
+        }
+
+        function playHoverSound() {
+            initAudio();
+            if (!audioCtx) return;
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(320, now);
+            osc.frequency.exponentialRampToValueAtTime(650, now + 0.08);
+            gain.gain.setValueAtTime(0.06, now);
+            gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now);
+            osc.stop(now + 0.08);
+        }
+
+        function playVictorySound() {
+            initAudio();
+            if (!audioCtx) return;
+            const notes = [523.25, 659.25, 783.99, 1046.50];
+            notes.forEach((freq, index) => {
+                const now = audioCtx.currentTime + (index * 0.12);
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, now);
+                gain.gain.setValueAtTime(0.35, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            });
+        }
+
+        /* ==========================================================================
+           DUEL ENGINE STATE & CANVAS SETUP
+           ========================================================================== */
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let scoreP1 = 0;
+        let scoreP2 = 0;
+        const TARGET_SCORE = 33;
+        let isGameRunning = true;
+        let fallingItems = [];
+        let particles = [];
+        let starsBg = [];
+        let spawnTimer = 0;
+        const SPAWN_INTERVAL = 45;
+        let dpr = window.devicePixelRatio || 1;
+
+        // Dual Hand Tracking State (Player 1 & Player 2)
+        let playerCursors = {
+            p1: { x: -100, y: -100, active: false, hoverTarget: null, hoverTimer: 0 },
+            p2: { x: -100, y: -100, active: false, hoverTarget: null, hoverTimer: 0 }
+        };
+        const HOVER_THRESHOLD = 15; // ~0.3 sec hover dwell selection
+
+        const POLYGON_COLORS = [
+            { fill: '#38bdf8', stroke: '#0284c7' },
+            { fill: '#f43f5e', stroke: '#be123c' },
+            { fill: '#a855f7', stroke: '#7e22ce' },
+            { fill: '#10b981', stroke: '#047857' },
+            { fill: '#f59e0b', stroke: '#b45309' },
+            { fill: '#ec4899', stroke: '#be185d' },
+            { fill: '#06b6d4', stroke: '#0e7490' },
+            { fill: '#84cc16', stroke: '#4d7c0f' },
+            { fill: '#fb7185', stroke: '#e11d48' }
+        ];
+
+        const DISTRACTOR_COLORS = [
+            { fill: '#fb923c', stroke: '#c2410c' },
+            { fill: '#38bdf8', stroke: '#1d4ed8' },
+            { fill: '#facc15', stroke: '#a16207' },
+            { fill: '#f43f5e', stroke: '#9f1239' },
+            { fill: '#c084fc', stroke: '#6b21a8' },
+            { fill: '#2dd4bf', stroke: '#0f766e' }
+        ];
+
+        const SHAPE_TYPES = {
+            TRIANGLE: 'TRIANGLE',
+            SQUARE: 'SQUARE',
+            RECTANGLE: 'RECTANGLE',
+            PENTAGON: 'PENTAGON',
+            HEXAGON: 'HEXAGON',
+            TRAPEZOID: 'TRAPEZOID',
+            RHOMBUS: 'RHOMBUS',          // Belah Ketupat
+            PARALLELOGRAM: 'PARALLELOGRAM',
+            KITE: 'KITE',                // Layang-layang
+            OVAL: 'OVAL',
+            CIRCLE: 'CIRCLE',
+            CURVED_STAR: 'CURVED_STAR',
+            HEART: 'HEART',
+            CRESCENT: 'CRESCENT',
+            SEMICIRCLE: 'SEMICIRCLE'
+        };
+
+        const POLYGON_KEYS = [
+            SHAPE_TYPES.TRIANGLE, SHAPE_TYPES.SQUARE, SHAPE_TYPES.RECTANGLE,
+            SHAPE_TYPES.PENTAGON, SHAPE_TYPES.HEXAGON, SHAPE_TYPES.TRAPEZOID,
+            SHAPE_TYPES.RHOMBUS, SHAPE_TYPES.PARALLELOGRAM, SHAPE_TYPES.KITE
+        ];
+
+        const DISTRACTOR_KEYS = [
+            SHAPE_TYPES.OVAL, SHAPE_TYPES.CIRCLE, SHAPE_TYPES.CURVED_STAR,
+            SHAPE_TYPES.HEART, SHAPE_TYPES.CRESCENT, SHAPE_TYPES.SEMICIRCLE
+        ];
+
+        function resizeCanvas() {
+            dpr = window.devicePixelRatio || 1;
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+
+            canvas.width = w * dpr;
+            canvas.height = h * dpr;
+
+            ctx.scale(dpr, dpr);
+            generateStars(w, h);
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function generateStars(w, h) {
+            starsBg = [];
+            for (let i = 0; i < 80; i++) {
+                starsBg.push({
+                    x: Math.random() * w,
+                    y: Math.random() * h,
+                    size: Math.random() * 2.5 + 1,
+                    alpha: Math.random() * 0.8 + 0.2
+                });
+            }
+        }
+
+        /* ==========================================================================
+           GEOMETRIC DRAWING (NO TEXT OVERLAY LABELS)
+           ========================================================================== */
+        function drawShape(ctx, item) {
+            const { x, y, size, type, isPolygon, colorScheme } = item;
+            
+            ctx.save();
+            ctx.translate(x, y);
+
+            ctx.shadowColor = isPolygon ? 'rgba(56, 189, 248, 0.5)' : 'rgba(244, 63, 94, 0.4)';
+            ctx.shadowBlur = 16;
+
+            ctx.fillStyle = colorScheme.fill;
+            ctx.strokeStyle = colorScheme.stroke;
+            ctx.lineWidth = 5;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+
+            ctx.beginPath();
+            const r = size / 2;
+
+            switch (type) {
+                case SHAPE_TYPES.TRIANGLE:
+                    ctx.moveTo(0, -r);
+                    ctx.lineTo(r, r);
+                    ctx.lineTo(-r, r);
+                    ctx.closePath();
+                    break;
+                case SHAPE_TYPES.SQUARE:
+                    ctx.rect(-r * 0.85, -r * 0.85, r * 1.7, r * 1.7);
+                    break;
+                case SHAPE_TYPES.RECTANGLE:
+                    ctx.rect(-r * 1.1, -r * 0.65, r * 2.2, r * 1.3);
+                    break;
+                case SHAPE_TYPES.PENTAGON:
+                    for (let i = 0; i < 5; i++) {
+                        const angle = (i * 2 * Math.PI / 5) - Math.PI / 2;
+                        const px = r * Math.cos(angle);
+                        const py = r * Math.sin(angle);
+                        if (i === 0) ctx.moveTo(px, py);
+                        else ctx.lineTo(px, py);
+                    }
+                    ctx.closePath();
+                    break;
+                case SHAPE_TYPES.HEXAGON:
+                    for (let i = 0; i < 6; i++) {
+                        const angle = (i * 2 * Math.PI / 6);
+                        const px = r * Math.cos(angle);
+                        const py = r * Math.sin(angle);
+                        if (i === 0) ctx.moveTo(px, py);
+                        else ctx.lineTo(px, py);
+                    }
+                    ctx.closePath();
+                    break;
+                case SHAPE_TYPES.TRAPEZOID:
+                    ctx.moveTo(-r * 0.5, -r * 0.7);
+                    ctx.lineTo(r * 0.5, -r * 0.7);
+                    ctx.lineTo(r * 0.9, r * 0.7);
+                    ctx.lineTo(-r * 0.9, r * 0.7);
+                    ctx.closePath();
+                    break;
+                case SHAPE_TYPES.RHOMBUS: // Belah Ketupat
+                    ctx.moveTo(0, -r);
+                    ctx.lineTo(r * 0.85, 0);
+                    ctx.lineTo(0, r);
+                    ctx.lineTo(-r * 0.85, 0);
+                    ctx.closePath();
+                    break;
+                case SHAPE_TYPES.PARALLELOGRAM: // Jajargenjang
+                    ctx.moveTo(-r * 0.4, -r * 0.65);
+                    ctx.lineTo(r * 0.9, -r * 0.65);
+                    ctx.lineTo(r * 0.4, r * 0.65);
+                    ctx.lineTo(-r * 0.9, r * 0.65);
+                    ctx.closePath();
+                    break;
+                case SHAPE_TYPES.KITE: // Layang-layang
+                    ctx.moveTo(0, -r * 0.95);
+                    ctx.lineTo(r * 0.75, -r * 0.2);
+                    ctx.lineTo(0, r * 0.95);
+                    ctx.lineTo(-r * 0.75, -r * 0.2);
+                    ctx.closePath();
+                    break;
+                case SHAPE_TYPES.CIRCLE:
+                    ctx.arc(0, 0, r * 0.85, 0, Math.PI * 2);
+                    break;
+                case SHAPE_TYPES.OVAL:
+                    ctx.ellipse(0, 0, r * 0.9, r * 0.6, 0, 0, Math.PI * 2);
+                    break;
+                case SHAPE_TYPES.CURVED_STAR:
+                    for (let i = 0; i < 5; i++) {
+                        const outerAngle = (i * 2 * Math.PI / 5) - Math.PI / 2;
+                        const innerAngle = outerAngle + Math.PI / 5;
+                        const ox = r * Math.cos(outerAngle);
+                        const oy = r * Math.sin(outerAngle);
+                        const ix = (r * 0.45) * Math.cos(innerAngle);
+                        const iy = (r * 0.45) * Math.sin(innerAngle);
+                        if (i === 0) ctx.moveTo(ox, oy);
+                        else ctx.quadraticCurveTo(ix * 0.5, iy * 0.5, ox, oy);
+                        ctx.quadraticCurveTo(ox * 0.5, oy * 0.5, ix, iy);
+                    }
+                    ctx.closePath();
+                    break;
+                case SHAPE_TYPES.HEART:
+                    ctx.moveTo(0, r * 0.6);
+                    ctx.bezierCurveTo(-r * 1.2, -r * 0.2, -r * 0.6, -r * 1.1, 0, -r * 0.4);
+                    ctx.bezierCurveTo(r * 0.6, -r * 1.1, r * 1.2, -r * 0.2, 0, r * 0.6);
+                    break;
+                case SHAPE_TYPES.CRESCENT:
+                    ctx.arc(0, 0, r * 0.8, 0.5 * Math.PI, 1.5 * Math.PI, false);
+                    ctx.bezierCurveTo(r * 0.4, -r * 0.6, r * 0.4, r * 0.6, 0, r * 0.8);
+                    break;
+                case SHAPE_TYPES.SEMICIRCLE:
+                    ctx.arc(0, 0, r * 0.8, Math.PI, 0, false);
+                    ctx.closePath();
+                    break;
+            }
+
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        /* ==========================================================================
+           GAME LOOP & SPAWNING FOR BOTH PLAYERS
+           ========================================================================== */
+        function spawnItemForPlayer(playerSide) {
+            if (!isGameRunning) return;
+
+            const isPolygon = Math.random() < 0.55;
+            const keys = isPolygon ? POLYGON_KEYS : DISTRACTOR_KEYS;
+            const key = keys[Math.floor(Math.random() * keys.length)];
+            
+            const colorList = isPolygon ? POLYGON_COLORS : DISTRACTOR_COLORS;
+            const colorScheme = colorList[Math.floor(Math.random() * colorList.length)];
+
+            const size = Math.random() * 15 + 85;
+            const padding = size + 20;
+            const halfWidth = window.innerWidth / 2;
+
+            let minX = playerSide === 'p1' ? padding : halfWidth + padding;
+            let maxX = playerSide === 'p1' ? halfWidth - padding : window.innerWidth - padding;
+
+            const x = Math.random() * (maxX - minX) + minX;
+            const speed = Math.random() * 1.8 + 2.0;
+
+            fallingItems.push({
+                id: Math.random().toString(36).substr(2, 9),
+                playerOwner: playerSide,
+                x: x,
+                y: -size,
+                size: size,
+                type: key,
+                isPolygon: isPolygon,
+                colorScheme: colorScheme,
+                speed: speed,
+                isHit: false
+            });
+        }
+
+        function createPopParticles(x, y, color) {
+            for (let i = 0; i < 20; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 7 + 2;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    size: Math.random() * 7 + 4,
+                    color: color,
+                    alpha: 1
+                });
+            }
+        }
+
+        function handleItemSelection(item, playerSide) {
+            if (!isGameRunning || item.isHit) return;
+
+            item.isHit = true;
+            createPopParticles(item.x, item.y, item.colorScheme.fill);
+
+            if (item.isPolygon) {
+                playCorrectSound();
+                if (playerSide === 'p1') {
+                    const remainingNeeded = TARGET_SCORE - scoreP1;
+                    scoreP1 += Math.min(3, remainingNeeded);
+                    document.getElementById('scoreP1').innerText = scoreP1;
+                    if (scoreP1 >= TARGET_SCORE) triggerVictory('PEMAIN 1');
+                } else {
+                    const remainingNeeded = TARGET_SCORE - scoreP2;
+                    scoreP2 += Math.min(3, remainingNeeded);
+                    document.getElementById('scoreP2').innerText = scoreP2;
+                    if (scoreP2 >= TARGET_SCORE) triggerVictory('PEMAIN 2');
+                }
+            } else {
+                playWrongSound();
+            }
+
+            fallingItems = fallingItems.filter(i => i.id !== item.id);
+        }
+
+        function triggerVictory(winnerName) {
+            isGameRunning = false;
+            playVictorySound();
+            
+            document.getElementById('winnerTitle').innerText = `${winnerName} MENANG! 🏆`;
+            document.getElementById('finalP1Score').innerText = `${scoreP1} Poin`;
+            document.getElementById('finalP2Score').innerText = `${scoreP2} Poin`;
+
+            confetti({
+                particleCount: 160,
+                spread: 100,
+                origin: { y: 0.6 }
+            });
+
+            setTimeout(() => {
+                confetti({
+                    particleCount: 120,
+                    angle: 60,
+                    spread: 80,
+                    origin: { x: 0 }
+                });
+                confetti({
+                    particleCount: 120,
+                    angle: 120,
+                    spread: 80,
+                    origin: { x: 1 }
+                });
+            }, 300);
+
+            document.getElementById('victoryModal').classList.remove('hidden');
+        }
+
+        function gameLoop() {
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            ctx.clearRect(0, 0, viewportWidth, viewportHeight);
+
+            // Render Space Stars Background
+            starsBg.forEach(star => {
+                ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Spawning Logic for both sides
+            if (isGameRunning) {
+                spawnTimer++;
+                if (spawnTimer >= SPAWN_INTERVAL) {
+                    spawnItemForPlayer('p1');
+                    spawnItemForPlayer('p2');
+                    spawnTimer = 0;
+                }
+
+                for (let i = fallingItems.length - 1; i >= 0; i--) {
+                    const item = fallingItems[i];
+                    item.y += item.speed;
+
+                    if (item.y - item.size > viewportHeight) {
+                        fallingItems.splice(i, 1);
+                        continue;
+                    }
+
+                    drawShape(ctx, item);
+                }
+            }
+
+            // Render Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha -= 0.035;
+                p.size *= 0.95;
+
+                if (p.alpha <= 0) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+
+                ctx.save();
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // Process Hover & Draw Cursors for Player 1 & Player 2
+            ['p1', 'p2'].forEach(pKey => {
+                const cursor = playerCursors[pKey];
+                const isP1 = pKey === 'p1';
+                const mainColor = isP1 ? '#38bdf8' : '#f43f5e';
+                const innerColor = isP1 ? '#22d3ee' : '#fb7185';
+
+                if (cursor.active && isGameRunning) {
+                    let currentHover = null;
+
+                    for (let item of fallingItems) {
+                        // Limit player interaction to their own half
+                        if (isP1 && item.x >= viewportWidth / 2) continue;
+                        if (!isP1 && item.x < viewportWidth / 2) continue;
+
+                        const dx = cursor.x - item.x;
+                        const dy = cursor.y - item.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+
+                        if (dist < item.size * 0.75) {
+                            currentHover = item;
+                            break;
+                        }
+                    }
+
+                    if (currentHover) {
+                        if (cursor.hoverTarget && cursor.hoverTarget.id === currentHover.id) {
+                            cursor.hoverTimer++;
+                            if (cursor.hoverTimer === 1) playHoverSound();
+
+                            const progress = cursor.hoverTimer / HOVER_THRESHOLD;
+                            ctx.save();
+                            ctx.beginPath();
+                            ctx.arc(cursor.x, cursor.y, 38, -Math.PI / 2, (-Math.PI / 2) + (Math.PI * 2 * progress));
+                            ctx.strokeStyle = '#facc15';
+                            ctx.lineWidth = 7;
+                            ctx.stroke();
+                            ctx.restore();
+
+                            if (cursor.hoverTimer >= HOVER_THRESHOLD) {
+                                handleItemSelection(currentHover, pKey);
+                                cursor.hoverTarget = null;
+                                cursor.hoverTimer = 0;
+                            }
+                        } else {
+                            cursor.hoverTarget = currentHover;
+                            cursor.hoverTimer = 0;
+                        }
+                    } else {
+                        cursor.hoverTarget = null;
+                        cursor.hoverTimer = 0;
+                    }
+
+                    // Draw Glowing Cosmic Reticle
+                    ctx.save();
+                    ctx.shadowColor = mainColor;
+                    ctx.shadowBlur = 22;
+
+                    ctx.strokeStyle = mainColor;
+                    ctx.lineWidth = 3.5;
+                    ctx.beginPath();
+                    ctx.arc(cursor.x, cursor.y, 24, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    ctx.fillStyle = innerColor;
+                    ctx.beginPath();
+                    ctx.arc(cursor.x, cursor.y, 9, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.restore();
+                }
+            });
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        /* ==========================================================================
+           DUAL HAND MEDIAPIPE TRACKING (maxNumHands: 2)
+           ========================================================================== */
+        function autoStartCamera() {
+            const videoElement = document.getElementById('webcam');
+            const camStatusDot = document.getElementById('camStatusDot');
+            const camStatusText = document.getElementById('camStatusText');
+
+            const handsDetector = new Hands({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+            });
+
+            handsDetector.setOptions({
+                maxNumHands: 2, // DETECT UP TO 2 HANDS SIMULTANEOUSLY
+                modelComplexity: 1,
+                minDetectionConfidence: 0.65,
+                minTrackingConfidence: 0.65
+            });
+
+            handsDetector.onResults(onDualHandResults);
+
+            const hdConstraints = {
+                video: {
+                    width: { ideal: 3840, min: 1920 },
+                    height: { ideal: 2160, min: 1080 },
+                    frameRate: { ideal: 60, min: 30 }
+                }
+            };
+
+            navigator.mediaDevices.getUserMedia(hdConstraints)
+                .then((stream) => {
+                    videoElement.srcObject = stream;
+                    camStatusDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse";
+                    camStatusText.innerText = "Kamera Dual Hand Active!";
+
+                    const processVideoFrame = async () => {
+                        if (videoElement.readyState >= 2) {
+                            await handsDetector.send({ image: videoElement });
+                        }
+                        requestAnimationFrame(processVideoFrame);
+                    };
+                    processVideoFrame();
+                })
+                .catch((err) => {
+                    console.warn("Camera constraint fallback:", err);
+                    const cameraInstance = new Camera(videoElement, {
+                        onFrame: async () => {
+                            if (videoElement.readyState >= 2) {
+                                await handsDetector.send({ image: videoElement });
+                            }
+                        },
+                        width: 1920,
+                        height: 1080
+                    });
+
+                    cameraInstance.start()
+                        .then(() => {
+                            camStatusDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse";
+                            camStatusText.innerText = "Kamera Dual Hand Ready!";
+                        })
+                        .catch(e => {
+                            camStatusDot.className = "w-2.5 h-2.5 rounded-full bg-amber-400";
+                            camStatusText.innerText = "Touch / Mouse Mode Ready";
+                        });
+                });
+        }
+
+        function onDualHandResults(results) {
+            playerCursors.p1.active = false;
+            playerCursors.p2.active = false;
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const viewportWidth = window.innerWidth;
+                const viewportHeight = window.innerHeight;
+
+                results.multiHandLandmarks.forEach((landmarks) => {
+                    const indexTip = landmarks[8];
+                    // Mirroring horizontal coordinate
+                    const x = (1 - indexTip.x) * viewportWidth;
+                    const y = indexTip.y * viewportHeight;
+
+                    // Assign dynamically to Player 1 (Left Half) or Player 2 (Right Half)
+                    if (x < viewportWidth / 2) {
+                        playerCursors.p1.x = x;
+                        playerCursors.p1.y = y;
+                        playerCursors.p1.active = true;
+                    } else {
+                        playerCursors.p2.x = x;
+                        playerCursors.p2.y = y;
+                        playerCursors.p2.active = true;
+                    }
+                });
+            }
+        }
+
+        /* ==========================================================================
+           TOUCH & MOUSE DUAL CONTROLS
+           ========================================================================== */
+        function setupMouseAndTouch() {
+            function handlePointer(e) {
+                initAudio();
+                const rect = canvas.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+                const clickX = clientX - rect.left;
+                const clickY = clientY - rect.top;
+
+                if (!isGameRunning) return;
+
+                const playerSide = clickX < window.innerWidth / 2 ? 'p1' : 'p2';
+
+                for (let item of fallingItems) {
+                    const dx = clickX - item.x;
+                    const dy = clickY - item.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist <= item.size * 0.8) {
+                        handleItemSelection(item, playerSide);
+                        break;
+                    }
+                }
+            }
+
+            canvas.addEventListener('mousedown', handlePointer);
+            canvas.addEventListener('touchstart', handlePointer, { passive: true });
+        }
+
+        function resetGame() {
+            initAudio();
+            scoreP1 = 0;
+            scoreP2 = 0;
+            document.getElementById('scoreP1').innerText = '0';
+            document.getElementById('scoreP2').innerText = '0';
+            fallingItems = [];
+            particles = [];
+            document.getElementById('victoryModal').classList.add('hidden');
+            isGameRunning = true;
+        }
+
+        /* ==========================================================================
+           INIT ON LOAD
+           ========================================================================== */
+        window.onload = function() {
+            resizeCanvas();
+            setupMouseAndTouch();
+            autoStartCamera();
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
